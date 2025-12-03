@@ -22,7 +22,12 @@ const URL = "./";
 let model, webcam;
 
 async function start() {
-  model = await tmImage.load(URL + "model.json", URL + "metadata.json");
+  try {
+    model = await tmImage.load(URL + "model.json", URL + "metadata.json");
+  } catch (err) {
+    document.getElementById("result").innerText = "Model Load Error: " + err;
+    return;
+  }
 
   webcam = new tmImage.Webcam(224,224,true);
   await webcam.setup();
