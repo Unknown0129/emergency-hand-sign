@@ -2,17 +2,31 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Emergency Hand Sign Recognition</title>
+
+  <!-- Local JS Files -->
   <script src="tf.min.js"></script>
   <script src="teachablemachine-image.min.js"></script>
+
   <style>
     body { font-family: Arial, sans-serif; text-align:center; padding:12px; }
-    #webcam { border:1px solid #ccc; margin-top:8px; border-radius:6px; }
-    button { padding:10px 16px; font-size:16px; border-radius:6px; }
-    #result { margin-top:10px; font-weight:600; }
+    #webcam { 
+      border:1px solid #ccc; 
+      margin-top:12px; 
+      border-radius:8px;
+      background:#000;
+    }
+    button { 
+      padding:12px 18px; 
+      font-size:18px; 
+      border-radius:6px;
+      margin-top:10px;
+    }
+    #result { margin-top:10px; font-weight:bold; }
   </style>
 </head>
+
 <body>
 
 <h2>Emergency Hand Sign Recognition</h2>
@@ -21,46 +35,74 @@
 
 <p id="result">Waiting...</p>
 
-<video id="webcam" autoplay playsinline width="320" height="320"></video>
+<!-- IMPORTANT: muted + playsinline required for WebViewer -->
+<video id="webcam" autoplay playsinline muted width="320" height="320"></video>
 
 <script>
 const URL = "./";
 let model, webcam;
 
+// main start function
 async function start() {
-  document.getElementById('result').innerText = 'Loading model...';
+  document.getElementById("result").innerText = "Loading model...";
+
+  // Load the model
   try {
     model = await tmImage.load(URL + "model.json", URL + "metadata.json");
   } catch (err) {
     document.getElementById("result").innerText = "Model Load Error: " + err;
-    console.error("Model load error:", err);
     return;
   }
 
-  try {
-    webcam = new tmImage.Webcam(320, 320, true);
-    await webcam.setup();
-    await webcam.play();
-  } catch (err) {
-    document.getElementById("result").innerText = "Camera Setup Error: " + err;
-    console.error("Camera error:", err);
-    return;
-  }
+  document.getElementById("result").innerText =
+    "Model loaded. Tap the video box to activate the camera.";
 
-  document.getElementById("webcam").srcObject = webcam.webcam;
-  document.getElementById('result').innerText = 'Model loaded. Point your hand to the camera.';
-  window.requestAnimationFrame(loop);
+  const videoElem = document.getElementById("webcam");
+
+  // Tap the video to activate camera (required for WebViewer)
+  videoElem.addEventListener("click", async () => {
+    try {
+      webcam = new tmImage.Webcam(320, 320, true);
+
+      // Ask permission
+      await webcam.setup();
+
+      // Start webcam (this only works after a tap gesture)
+      await webcam.play();
+
+      // Attach to video element
+      videoElem.srcObject = webcam.webcam;
+      videoElem.load();
+      videoElem.play();
+
+      document.getElementById("result").innerText =
+        "Camera activated! Detecting...";
+
+      // Start prediction loop
+      window.requestAnimationFrame(loop);
+
+    } catch (err) {
+      document.getElementById("result").innerText =
+        "Camera Error: " + err;
+    }
+  });
 }
 
+// Prediction loop
 async function loop() {
   const prediction = await model.predict(webcam.canvas);
-  let best = prediction.reduce((a,b)=>a.probability>b.probability?a:b);
+
+  let best = prediction.reduce((a, b) =>
+    a.probability > b.probability ? a : b
+  );
+
   document.getElementById("result").innerText =
-      best.className + " (" + (best.probability*100).toFixed(1) + "%)";
+    best.className + " (" + (best.probability * 100).toFixed(1) + "%)";
+
   window.requestAnimationFrame(loop);
 }
 
-document.getElementById('startBtn').addEventListener('click', start);
+document.getElementById("startBtn").addEventListener("click", start);
 </script>
 
 </body>
