@@ -1,55 +1,67 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Emergency Hand Sign Recognition</title>
   <script src="tf.min.js"></script>
   <script src="teachablemachine-image.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; text-align:center; padding:12px; }
+    #webcam { border:1px solid #ccc; margin-top:8px; border-radius:6px; }
+    button { padding:10px 16px; font-size:16px; border-radius:6px; }
+    #result { margin-top:10px; font-weight:600; }
+  </style>
 </head>
-<body style="text-align:center">
+<body>
 
 <h2>Emergency Hand Sign Recognition</h2>
 
-<button onclick="start()">Start Camera</button>
+<button id="startBtn">Start Camera</button>
 
 <p id="result">Waiting...</p>
 
-<video id="webcam" autoplay playsinline width="224" height="224"></video>
+<video id="webcam" autoplay playsinline width="320" height="320"></video>
 
 <script>
-
 const URL = "./";
-
 let model, webcam;
 
 async function start() {
+  document.getElementById('result').innerText = 'Loading model...';
   try {
     model = await tmImage.load(URL + "model.json", URL + "metadata.json");
   } catch (err) {
     document.getElementById("result").innerText = "Model Load Error: " + err;
+    console.error("Model load error:", err);
     return;
   }
 
-  webcam = new tmImage.Webcam(224,224,true);
-  await webcam.setup();
-  await webcam.play();
+  try {
+    webcam = new tmImage.Webcam(320, 320, true);
+    await webcam.setup();
+    await webcam.play();
+  } catch (err) {
+    document.getElementById("result").innerText = "Camera Setup Error: " + err;
+    console.error("Camera error:", err);
+    return;
+  }
 
   document.getElementById("webcam").srcObject = webcam.webcam;
-
+  document.getElementById('result').innerText = 'Model loaded. Point your hand to the camera.';
   window.requestAnimationFrame(loop);
 }
 
 async function loop() {
   const prediction = await model.predict(webcam.canvas);
-
   let best = prediction.reduce((a,b)=>a.probability>b.probability?a:b);
-
   document.getElementById("result").innerText =
       best.className + " (" + (best.probability*100).toFixed(1) + "%)";
-
   window.requestAnimationFrame(loop);
 }
+
+document.getElementById('startBtn').addEventListener('click', start);
 </script>
 
 </body>
 </html>
-
