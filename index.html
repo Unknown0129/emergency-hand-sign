@@ -5,25 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Emergency Hand Sign Recognition</title>
 
-  <!-- Local JS Files -->
   <script src="tf.min.js"></script>
   <script src="teachablemachine-image.min.js"></script>
 
   <style>
     body { font-family: Arial, sans-serif; text-align:center; padding:12px; }
-    #webcam { 
-      border:1px solid #ccc; 
-      margin-top:12px; 
-      border-radius:8px;
-      background:#000;
+    #video {
+      width: 320px;
+      height: 320px;
+      background: #000;
+      margin-top: 12px;
+      border-radius: 8px;
     }
-    button { 
-      padding:12px 18px; 
-      font-size:18px; 
-      border-radius:6px;
-      margin-top:10px;
+    button {
+      padding: 12px 16px;
+      font-size: 18px;
+      border-radius: 6px;
     }
-    #result { margin-top:10px; font-weight:bold; }
+    #result { margin-top: 10px; font-weight: bold; }
   </style>
 </head>
 
@@ -35,62 +34,56 @@
 
 <p id="result">Waiting...</p>
 
-<!-- IMPORTANT: muted + playsinline required for WebViewer -->
-<video id="webcam" autoplay playsinline muted width="320" height="320"></video>
+<video id="video" autoplay playsinline muted></video>
+<canvas id="canvas" width="320" height="320" style="display:none;"></canvas>
 
 <script>
-const URL = "./";
-let model, webcam;
+let model;
+let videoStream;
 
-// main start function
-async function start() {
-  document.getElementById("result").innerText = "Loading model...";
+async function startCamera() {
+  const video = document.getElementById("video");
 
-  // Load the model
   try {
-    model = await tmImage.load(URL + "model.json", URL + "metadata.json");
-  } catch (err) {
-    document.getElementById("result").innerText = "Model Load Error: " + err;
-    return;
+    videoStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" } // back camera
+    });
+
+    video.srcObject = videoStream;
+    video.play();
+
+    document.getElementById("result").innerText =
+      "Camera ON. Loading model...";
+
+    await loadModel();
   }
-
-  document.getElementById("result").innerText =
-    "Model loaded. Tap the video box to activate the camera.";
-
-  const videoElem = document.getElementById("webcam");
-
-  // Tap the video to activate camera (required for WebViewer)
-  videoElem.addEventListener("click", async () => {
-    try {
-      webcam = new tmImage.Webcam(320, 320, true);
-
-      // Ask permission
-      await webcam.setup();
-
-      // Start webcam (this only works after a tap gesture)
-      await webcam.play();
-
-      // Attach to video element
-      videoElem.srcObject = webcam.webcam;
-      videoElem.load();
-      videoElem.play();
-
-      document.getElementById("result").innerText =
-        "Camera activated! Detecting...";
-
-      // Start prediction loop
-      window.requestAnimationFrame(loop);
-
-    } catch (err) {
-      document.getElementById("result").innerText =
-        "Camera Error: " + err;
-    }
-  });
+  catch (err) {
+    document.getElementById("result").innerText =
+      "Camera Error: " + err;
+  }
 }
 
-// Prediction loop
+async function loadModel() {
+  try {
+    model = await tmImage.load("model.json", "metadata.json");
+    document.getElementById("result").innerText =
+      "Model loaded. Recognizing...";
+    requestAnimationFrame(loop);
+  } catch (err) {
+    document.getElementById("result").innerText =
+      "Model Load Error: " + err;
+  }
+}
+
 async function loop() {
-  const prediction = await model.predict(webcam.canvas);
+  const video = document.getElementById("video");
+  const canvas = document.getElementById("canvas");
+  const ctx = canvas.getContext("2d");
+
+  // draw video frame to canvas
+  ctx.drawImage(video, 0, 0, 320, 320);
+
+  const prediction = await model.predict(canvas);
 
   let best = prediction.reduce((a, b) =>
     a.probability > b.probability ? a : b
@@ -99,10 +92,10 @@ async function loop() {
   document.getElementById("result").innerText =
     best.className + " (" + (best.probability * 100).toFixed(1) + "%)";
 
-  window.requestAnimationFrame(loop);
+  requestAnimationFrame(loop);
 }
 
-document.getElementById("startBtn").addEventListener("click", start);
+document.getElementById("startBtn").addEventListener("click", startCamera);
 </script>
 
 </body>
